@@ -20,7 +20,7 @@ provider "aws" {
 data "aws_availability_zones" "available" {}
 
 resource "aws_vpc" "main" {
-  cidr_block = "172.17.0.0/16"
+  cidr_block = "10.17.0.0/16"
 }
 
 # Create var.az_count private subnets, each in a different AZ
@@ -133,7 +133,7 @@ resource "aws_security_group" "ecs_tasks" {
 
 resource "aws_alb" "main" {
   name            = "tf-ecs-chat"
-  subnets         = ["${aws_subnet.public.*.id}"]
+  subnets         = "${aws_subnet.public.*.id}"
   security_groups = ["${aws_security_group.lb.id}"]
 }
 
@@ -169,6 +169,7 @@ resource "aws_ecs_task_definition" "app" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = "${var.fargate_cpu}"
   memory                   = "${var.fargate_memory}"
+	execution_role_arn       = "arn:aws:iam::151035343788:role/ecsTaskExecutionRole"
 
   container_definitions = <<DEFINITION
 [
@@ -198,7 +199,7 @@ resource "aws_ecs_service" "main" {
 
   network_configuration {
     security_groups = ["${aws_security_group.ecs_tasks.id}"]
-    subnets         = ["${aws_subnet.private.*.id}"]
+    subnets         = "${aws_subnet.private.*.id}"
   }
 
   load_balancer {
