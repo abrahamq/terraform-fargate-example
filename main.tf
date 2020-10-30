@@ -1,15 +1,17 @@
 # Specify the provider and access details
-
-# We use vault to get credentials, but you can use variables to achieve the same thing
-data "vault_generic_secret" "aws_creds" {
-  path = "aws/sts/manage-${var.aws_account_id}"
+#
+terraform {
+	backend "s3" {
+		bucket = "flux-tf-state"
+		key    = "tf-state/1.0"
+		region = "us-east-1"
+	}
 }
 
 provider "aws" {
-  access_key = "${data.vault_generic_secret.aws_creds.data["access_key"]}"
-  secret_key = "${data.vault_generic_secret.aws_creds.data["secret_key"]}"
-  token      = "${data.vault_generic_secret.aws_creds.data["security_token"]}"
-  region     = "${var.aws_region}"
+  region     = "us-east-1"
+  shared_credentials_file = "~/.aws/credentials"
+	profile    = "terraform-flux"
 }
 
 ### Network
@@ -182,7 +184,7 @@ resource "aws_ecs_task_definition" "app" {
         "hostPort": ${var.app_port}
       }
     ]
-  }
+	}
 ]
 DEFINITION
 }
