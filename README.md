@@ -8,9 +8,19 @@ cp terraform /Applications/terraform.app/terraform
 in ~/.bash_profile:
 ```
 export PATH="$PATH:/Applications/terraform.app"
+alias tf='Applications/terraform.app/terraform"
 ```
 
+
 # Set the ~/.aws/credentials
+
+```
+mkdir ~/.aws
+touch ~/.aws/credentials
+open ~/.aws/credentials
+```
+
+
 With the terraform-flux user from last pass
 Then:
 ```
