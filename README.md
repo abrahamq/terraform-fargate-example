@@ -1,3 +1,15 @@
+# Install terraform
+[Get terraform](https://releases.hashicorp.com/terraform/0.12.10/)
+```
+mkdir /Applications/terraform.app
+cp terraform /Applications/terraform.app/terraform
+```
+
+in ~/.bash_profile:
+```
+PATH="PATH:/Applications/terraform.app"
+```
+
 # Set the ~/.aws/credentials
 With the terraform-flux user from last pass
 Then:
