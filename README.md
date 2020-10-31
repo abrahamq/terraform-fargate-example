@@ -7,7 +7,7 @@ cp terraform /Applications/terraform.app/terraform
 
 in ~/.bash_profile:
 ```
-PATH="PATH:/Applications/terraform.app"
+export PATH="$PATH:/Applications/terraform.app"
 ```
 
 # Set the ~/.aws/credentials
