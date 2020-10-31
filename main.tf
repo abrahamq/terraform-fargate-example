@@ -100,6 +100,13 @@ resource "aws_security_group" "lb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    protocol    = "tcp"
+    from_port   = 443
+    to_port     = 443
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port = 0
     to_port   = 0
@@ -135,6 +142,8 @@ resource "aws_alb" "main" {
   name            = "tf-ecs-chat"
   subnets         = "${aws_subnet.public.*.id}"
   security_groups = ["${aws_security_group.lb.id}"]
+
+
 }
 
 resource "aws_alb_target_group" "app" {
@@ -146,10 +155,28 @@ resource "aws_alb_target_group" "app" {
 }
 
 # Redirect all traffic from the ALB to the target group
-resource "aws_alb_listener" "front_end" {
+resource "aws_alb_listener" "https_redirect" {
   load_balancer_arn = "${aws_alb.main.id}"
   port              = "80"
   protocol          = "HTTP"
+
+  default_action {
+    type             = "redirect"
+		redirect {
+			port = "443"
+			protocol = "HTTPS"
+			status_code = "HTTP_302"
+		}
+  }
+}
+
+resource "aws_alb_listener" "front_end" {
+  load_balancer_arn = "${aws_alb.main.id}"
+  port              = "443"
+  protocol          = "HTTPS"
+	ssl_policy        = "ELBSecurityPolicy-2016-08"
+	certificate_arn   = var.acm_front_end_arn
+
 
   default_action {
     target_group_arn = "${aws_alb_target_group.app.id}"
@@ -157,58 +184,26 @@ resource "aws_alb_listener" "front_end" {
   }
 }
 
-### ECS
-
-resource "aws_ecs_cluster" "main" {
-  name = "tf-ecs-cluster"
+resource "aws_alb_target_group" "data" {
+  name        = "tf-ecs-data"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = "${aws_vpc.main.id}"
+  target_type = "ip"
 }
 
-resource "aws_ecs_task_definition" "app" {
-  family                   = "app"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = "${var.fargate_cpu}"
-  memory                   = "${var.fargate_memory}"
-	execution_role_arn       = "arn:aws:iam::151035343788:role/ecsTaskExecutionRole"
+resource "aws_alb_listener_rule" "data" {
+  listener_arn = aws_alb_listener.front_end.arn
+  priority     = 100
 
-  container_definitions = <<DEFINITION
-[
-  {
-    "cpu": ${var.fargate_cpu},
-    "image": "${var.app_image}",
-    "memory": ${var.fargate_memory},
-    "name": "app",
-    "networkMode": "awsvpc",
-    "portMappings": [
-      {
-        "containerPort": ${var.app_port},
-        "hostPort": ${var.app_port}
-      }
-    ]
-	}
-]
-DEFINITION
-}
-
-resource "aws_ecs_service" "main" {
-  name            = "tf-ecs-service"
-  cluster         = "${aws_ecs_cluster.main.id}"
-  task_definition = "${aws_ecs_task_definition.app.arn}"
-  desired_count   = "${var.app_count}"
-  launch_type     = "FARGATE"
-
-  network_configuration {
-    security_groups = ["${aws_security_group.ecs_tasks.id}"]
-    subnets         = "${aws_subnet.private.*.id}"
+  action {
+    type             = "forward"
+    target_group_arn = aws_alb_target_group.data.arn
   }
 
-  load_balancer {
-    target_group_arn = "${aws_alb_target_group.app.id}"
-    container_name   = "app"
-    container_port   = "${var.app_port}"
+  condition {
+    path_pattern {
+      values = ["/api/*"]
+    }
   }
-
-  depends_on = [
-    "aws_alb_listener.front_end",
-  ]
 }

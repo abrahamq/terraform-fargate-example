@@ -22,9 +22,10 @@ open ~/.aws/credentials
 
 
 With the terraform-flux user from last pass
-Then:
+Then in this repo:
 ```
 export AWS_PROFILE=terraform-flux
+tf init
 tf workspace select fluxland
 tf plan -out=flux.plan
 tf apply flux.plan
