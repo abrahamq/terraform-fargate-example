@@ -25,7 +25,15 @@ resource "aws_ecs_task_definition" "web" {
         "containerPort": ${var.app_port},
         "hostPort": ${var.app_port}
       }
-    ]
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${aws_cloudwatch_log_group.slr-server.name}",
+        "awslogs-region": "us-east-1",
+        "awslogs-stream-prefix": "pre"
+      }
+    }
 	}
 ]
 DEFINITION
@@ -56,6 +64,15 @@ resource "aws_ecs_service" "web" {
 
 
 ### data service
+resource "aws_cloudwatch_log_group" "slr-server" {
+  name = "slr-server-group"
+
+  tags = {
+    Environment = "production"
+    Application = "serviceA"
+  }
+}
+
 resource "aws_ecs_task_definition" "data" {
   family                   = "slr-server"
   network_mode             = "awsvpc"
@@ -63,6 +80,8 @@ resource "aws_ecs_task_definition" "data" {
   cpu                      = "${var.fargate_cpu}"
   memory                   = "${var.fargate_memory}"
 	execution_role_arn       = "arn:aws:iam::151035343788:role/ecsTaskExecutionRole"
+
+
 
   container_definitions = <<DEFINITION
 [
@@ -77,7 +96,15 @@ resource "aws_ecs_task_definition" "data" {
         "containerPort": ${var.data_app_port},
         "hostPort": ${var.data_app_port}
       }
-    ]
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${aws_cloudwatch_log_group.slr-server.name}",
+        "awslogs-region": "us-east-1",
+        "awslogs-stream-prefix": "pre"
+      }
+    }
 	}
 ]
 DEFINITION
@@ -89,6 +116,15 @@ resource "aws_ecs_service" "data" {
   task_definition = "${aws_ecs_task_definition.data.arn}"
   desired_count   = "${var.app_count}"
   launch_type     = "FARGATE"
+
+  // we ignore changes to the container definition in order to
+  // manually place secret environment variables through the
+  // aws console.
+  lifecycle {
+    ignore_changes = [
+      task_definition
+    ]
+  }
 
   network_configuration {
     security_groups = ["${aws_security_group.ecs_tasks.id}"]
